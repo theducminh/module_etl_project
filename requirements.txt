@@ -1,8 +1,8 @@
-apache-airflow==2.9.1
 pandas
-requests
-python-dotenv
-supabase
-PyYAML
-beautifulsoup4
-lxml
+ requests
+  python-dotenv
+   supabase
+    PyYAML
+     beautifulsoup4
+      lxml 
+      utils
