@@ -1,8 +1,6 @@
 pandas
- requests
-  python-dotenv
-   supabase
-    PyYAML
-     beautifulsoup4
-      lxml 
-      utils
+requests
+python-dotenv
+supabase
+psycopg2-binary
+beautifulsoup4

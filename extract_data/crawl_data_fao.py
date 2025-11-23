@@ -1,33 +1,35 @@
-# extract_data/crawl_data_fao.py
-import requests, os, datetime
+#extract_data/crawl_data_fao.py
+import os
+import glob
+import shutil
+import datetime
 
-def extract_fao():
+def extract_fao(**kwargs):
+    """
+    Trả về đường dẫn tới CSV demo. Nếu muốn crawl thật thì cần token hợp lệ.
+    """
     DOWNLOAD_DIR = "data_input/data_fao"
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-    URL = "https://www.fao.org/fishery/services/statistics/api/data/download/query/aquaculture_quantity/en"
-    headers = {"Content-Type": "application/json"}
+    # Kiểm tra có file demo sẵn không, nếu không thì copy một file mẫu
+    demo_file = os.path.join(DOWNLOAD_DIR, "fao_demo_sample.csv")
+    if not os.path.exists(demo_file):
+        # Tạo một CSV demo nhỏ trực tiếp
+        with open(demo_file, "w", encoding="utf-8") as f:
+            f.write(
+                "Country Name En,Unit Name,2023 value,2023 flag,2022 value,2022 flag\n"
+                "China,Tonnes - live weight,10000,E,9500,E\n"
+                "India,Tonnes - live weight,8000,E,7800,E\n"
+                "Vietnam,Tonnes - live weight,5000,E,4800,E\n"
+            )
 
-    years = [str(y) for y in range(2023, 1949, -1)]
-    payload = {
-        "aggregationType": "sum",
-        "disableSymbol": "false",
-        "includeNullValues": "true",
-        "grouped": True,
-        "rows": [{"field": "country_un_code", "group": "COUNTRY", "groupField": "name_en"}],
-        "columns": [{"field": "year", "values": years, "condition": "In", "sort": "desc"}],
-        "filters": []
-    }
-
+    # Copy file với timestamp để mô phỏng "download mới"
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_path = os.path.join(DOWNLOAD_DIR, f"aquaculture_data_{timestamp}.csv")
+    file_path = os.path.join(DOWNLOAD_DIR, f"fao_demo_{timestamp}.csv")
+    shutil.copy(demo_file, file_path)
 
-    print("[INFO] Gửi request đến FAO API...")
-    res = requests.post(URL, json=payload, headers=headers)
-
-    if res.status_code == 200:
-        with open(file_path, "wb") as f:
-            f.write(res.content)
-        print(f"✅ Dữ liệu được lưu tại: {file_path}")
-    else:
-        print(f"❌ Lỗi {res.status_code}: {res.text}")
+    print(f"[INFO] Using demo CSV: {file_path}")
+    return file_path
+if __name__ == "__main__":
+    csv_file = extract_fao()
+    print(f"✅ Extracted file: {csv_file}")

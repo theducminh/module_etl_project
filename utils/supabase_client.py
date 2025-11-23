@@ -1,10 +1,15 @@
-from supabase import create_client
+# utils/supabase_client.py
 import os
-from dotenv import load_dotenv
+from supabase import create_client
+import dotenv
 
-load_dotenv()
-
+dotenv.load_dotenv()
 def get_supabase_client():
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
-    return create_client(url, key)
+    """
+    Initialize and return a Supabase client using environment variables.
+    """
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise ValueError("Supabase URL and KEY must be set in environment variables.")
+    return create_client(SUPABASE_URL, SUPABASE_KEY)

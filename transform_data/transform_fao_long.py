@@ -1,48 +1,48 @@
 # transform_data/transform_fao_long.py
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit
-from pyspark.sql.types import FloatType
+import pandas as pd
 import os
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_PATH = os.path.join(BASE_DIR, "data_input", "data_fao")
-OUTPUT_DIR = os.path.join(BASE_DIR, "output_data", "fao_long_cleaned")
+def transform_fao(input_file=None, output_dir="output_data/fao_long", **kwargs):
+    """
+    Pull input_file path from XCom if not provided,
+    transform CSV to long format,
+    push output file path to XCom
+    """
+    if input_file is None:
+        ti = kwargs['ti']
+        input_file = ti.xcom_pull(task_ids="extract_fao")  # pull from previous task
 
-def transform_fao():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    spark = SparkSession.builder.appName("FAO Wide to Long").getOrCreate()
-    spark.sparkContext.setLogLevel("WARN")
+    df = pd.read_csv(input_file)
 
-    csv_files = [os.path.join(DATA_PATH, f) for f in os.listdir(DATA_PATH) if f.endswith(".csv")]
-    if not csv_files:
-        raise FileNotFoundError("⚠️ Không có file CSV nào trong data_input/data_fao")
+    # Lấy các cột năm
+    year_cols = [c for c in df.columns if c[:4].isdigit()]
 
-    df_all = None
-    for file_path in csv_files:
-        df = spark.read.option("header", True).csv(file_path)
-        year_cols = [c.split()[0] for c in df.columns if c.endswith("value")]
-        for y in year_cols:
-            df = df.withColumn(f"{y} value", col(f"{y} value").cast(FloatType()))
+    # UNPIVOT
+    df_long = pd.melt(
+        df,
+        id_vars=["Country Name En", "Unit Name"],
+        value_vars=year_cols,
+        var_name="year",
+        value_name="value"
+    )
 
-        df_long_list = []
-        for y in year_cols:
-            df_y = df.select(
-                col("Country Name En").alias("country"),
-                col("Unit Name").alias("unit"),
-                lit(int(y)).alias("year"),
-                col(f"{y} value").alias("value"),
-                col(f"{y} flag").alias("flag")
-            )
-            df_long_list.append(df_y)
+    df_long.rename(columns={
+        "Country Name En": "country",
+        "Unit Name": "unit"
+    }, inplace=True)
 
-        df_long = df_long_list[0]
-        for d in df_long_list[1:]:
-            df_long = df_long.unionByName(d)
+    df_long["year"] = df_long["year"].astype(int)
+    df_long["value"] = pd.to_numeric(df_long["value"], errors="coerce")
+    df_long.dropna(subset=["value"], inplace=True)
 
-        df_long_clean = df_long.dropna()
-        df_all = df_long_clean if df_all is None else df_all.unionByName(df_long_clean)
+    os.makedirs(output_dir, exist_ok=True)
+    out_file = os.path.join(output_dir, "fao_long.csv")
+    df_long.to_csv(out_file, index=False)
+    print(f"✅ Transform xong: {out_file}")
+    return out_file  # push to XCom
 
-    output_csv = os.path.join(OUTPUT_DIR, "fao_long.csv")
-    df_all.repartition(1).write.option("header", True).mode("overwrite").csv(OUTPUT_DIR)
-    spark.stop()
-    print(f"✅ Transform hoàn tất → dữ liệu đã lưu tại: {output_csv}")
+if __name__ == "__main__":
+    csv_input = "data_input/data_fao/fao_demo.csv"
+    output_dir = "output_data/fao_long"
+    csv_file = transform_fao(input_file=csv_input, output_dir=output_dir)
+    print(f"✅ CSV transformed: {csv_file}")
