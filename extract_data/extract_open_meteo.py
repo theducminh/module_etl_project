@@ -20,10 +20,14 @@ def extract_open_meteo(lat=21.0278, lon=105.8342, start=None, end=None, **kwargs
         end = datetime.date.today().isoformat()
 
     url = (
-        "https://api.open-meteo.com/v1/forecast"
-        f"?latitude={lat}&longitude={lon}&hourly=temperature_2m"
-        f"&start_date={start}&end_date={end}&timezone=UTC"
-    )
+    "https://api.open-meteo.com/v1/forecast"
+    f"?latitude={lat}&longitude={lon}"
+    f"&hourly=temperature_2m"
+    f"&forecast_days=7"
+    f"&timezone=UTC"
+)
+
+
 
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
